@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Confirmado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="flex flex-col items-center justify-center h-screen bg-gray-100 text-center">
+
+    <div class="flex flex-col items-center">
+        <!-- Ícone de check animado -->
+        <div
+            class="w-20 h-20 border-4 border-green-500 rounded-full flex items-center justify-center animate-spin-slow">
+            <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+
+        <!-- Mensagem de confirmação -->
+        <h1 class="mt-4 text-2xl font-semibold text-gray-800">Pagamento Confirmado!</h1>
+        <p class="mt-2 text-gray-600">Em instantes entraremos em contato para dar andamento no seu processo!</p>
+    </div>
+
+    <style>
+        @keyframes spin-slow {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin-slow {
+            animation: spin-slow 2s linear infinite;
+        }
+    </style>
+ <script>
+    /**
+     * Captura o id da financeira da URL
+     */
+    function getFinanceiraId() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('idfinanceira');
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const idFinanceira = getFinanceiraId();
+
+        /**
+         * Se não houver id da financeira, redireciona para a página inicial
+         */
+        if (!idFinanceira) {
+            window.location.href = 'https://sisnato.com.br';
+        }
+    });
+</script>
+
+</body>
+
+</html>

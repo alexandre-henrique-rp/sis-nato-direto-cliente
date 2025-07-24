@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro - Passo 1</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+  <div class="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+    <h1 class="text-2xl font-bold text-center text-green-700 mb-6">CADASTRO</h1>
+
+    <form id="cadastroForm">
+      <div class="mb-4">
+        <label for="nome" class="block text-green-700 font-medium mb-2">Nome</label>
+        <input type="text" id="nome" name="nome" placeholder="Digite seu nome"
+          class="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          required>
+      </div>
+
+      <div class="mb-4">
+        <label for="cpf" class="block text-green-700 font-medium mb-2">CPF</label>
+        <input type="text" id="cpf" name="cpf" placeholder="Digite seu CPF"
+          class="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          required maxlength="14">
+        <p id="cpf-error" class="text-red-500 text-sm mt-2 hidden">CPF inválido. Por favor, insira um CPF válido.</p>
+      </div>
+
+      <div class="mb-4">
+        <label for="data-nascimento" class="block text-green-700 font-medium mb-2">Data de Nascimento</label>
+        <input type="date" id="data-nascimento" name="data-nascimento"
+          class="w-full p-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          required>
+      </div>
+
+      <button type="button" id="botaoProximoPasso"
+        class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled>
+        Próximo Passo
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('cadastroForm');
+    const botaoProximoPasso = document.getElementById('botaoProximoPasso');
+    const campos = form.querySelectorAll('input[required]');
+    const cpfInput = document.getElementById('cpf');
+    const cpfError = document.getElementById('cpf-error');
+
+    function aplicarMascaraCPF(cpf) {
+      return cpf
+        .replace(/\D/g, '')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+
+    function validarCPF(cpf) {
+      cpf = cpf.replace(/\D/g, '');
+      if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+
+      let soma = 0, resto;
+      for (let i = 0; i < 9; i++) soma += parseInt(cpf[i]) * (10 - i);
+      resto = (soma * 10) % 11;
+      if (resto === 10 || resto === 11) resto = 0;
+      if (resto !== parseInt(cpf[9])) return false;
+
+      soma = 0;
+      for (let i = 0; i < 10; i++) soma += parseInt(cpf[i]) * (11 - i);
+      resto = (soma * 10) % 11;
+      if (resto === 10 || resto === 11) resto = 0;
+
+      return resto === parseInt(cpf[10]);
+    }
+
+    cpfInput.addEventListener('input', () => {
+      let valorSemMascara = cpfInput.value.replace(/\D/g, '');
+      cpfInput.value = aplicarMascaraCPF(valorSemMascara);
+    });
+
+    function verificarCampos() {
+      let todosPreenchidos = [...campos].every(campo => campo.value.trim() !== '');
+      let cpfValido = validarCPF(cpfInput.value);
+
+      if (!cpfValido) {
+        cpfError.classList.remove('hidden');
+      } else {
+        cpfError.classList.add('hidden');
+      }
+
+      botaoProximoPasso.disabled = !todosPreenchidos || !cpfValido;
+    }
+
+    campos.forEach(campo => campo.addEventListener('input', verificarCampos));
+
+    botaoProximoPasso.addEventListener('click', () => {
+      const params = new URLSearchParams(window.location.search);
+      const idFinanceira = params.get('idfinanceira');
+
+      if (!idFinanceira) {
+        alert("Erro: ID da financeira não encontrado.");
+        window.location.href = 'https://sisnato.com.br';
+        return;
+      }
+
+      const dados = {
+        nome: document.getElementById('nome').value.trim(),
+        cpf: cpfInput.value.replace(/\D/g, ''),
+        dt_nascimento: document.getElementById('data-nascimento').value,
+      };
+
+      localStorage.setItem('dadosCadastro', JSON.stringify(dados));
+      window.location.href = `cadastro2.html?idfinanceira=${idFinanceira}`;
+    });
+
+  </script>
+
+</body>
+
+</html>

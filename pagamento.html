@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realizar Pagamento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full text-center">
+        <h1 class="text-green-700 text-xl font-bold">REALIZAR PAGAMENTO</h1>
+        <p id="paymentValue" class="text-gray-700 mt-2">Para prosseguir com o processo de emissão do seu certificado
+            digital, é necessário realizar o pagamento no valor de R$ 75,00.</p>
+        <div class="bg-gray-200 p-4 rounded-lg mt-4 flex justify-center relative">
+            <div id="loader" class="absolute inset-0 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-green-700"></div>
+            </div>
+            <img id="qrcode" src="" class="w-60 h-60 hidden">
+        </div>
+        <div id="pixKey" class="bg-gray-300 p-2 rounded mt-3 text-sm break-words"></div>
+        <button onclick="copyPixKey()" class="mt-4 bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800">
+            Copiar Código
+        </button>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async function () {
+            const storedData = localStorage.getItem('dadosCadastro');
+            let dadosCadastro = storedData ? JSON.parse(storedData) : {};
+
+            // Captura o parâmetro 'idfinanceira' da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const idfinanceira = urlParams.get('idfinanceira'); // Define padrão como '1' se não existir
+            if (!idfinanceira) {
+                window.location.href = 'https://sisnato.com.br';
+            }
+            dadosCadastro.financeiro = +idfinanceira; // Adiciona ao objeto
+
+            const nome = dadosCadastro?.nome;
+            const cpf = dadosCadastro?.cpf;
+            const valor = '75.00';
+
+            if (!cpf || !nome || !valor) {
+                document.getElementById('paymentValue').textContent = "Erro: Dados do usuário não encontrados.";
+                return;
+            }
+
+            document.getElementById('paymentValue').textContent = `Para prosseguir com o processo de emissão do seu certificado digital, é necessário realizar o pagamento no valor de R$ ${valor}.`;
+
+            try {
+                const response = await fetch('https://apinatodireto.redebrasilrp.com.br/pix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cpf, nome, valor }),
+                });
+
+                if (!response.ok) throw new Error(`Erro ao gerar código PIX: ${response.status} - ${response.statusText}`);
+
+                const data = await response.json();
+                if (data) {
+                    document.getElementById("pixKey").textContent = data.pixCopiaECola;
+                    document.getElementById("qrcode").src = data.imagemQrcode;
+                    document.getElementById("loader").style.display = "none";
+                    document.getElementById("qrcode").classList.remove("hidden");
+
+                    // Adiciona os dados do PIX ao localStorage
+                    dadosCadastro.txid = data.txid;
+                    dadosCadastro.pixCopiaECola = data.pixCopiaECola;
+                    dadosCadastro.imagemQrcode = data.imagemQrcode;
+                    dadosCadastro.valor = +valor;
+
+                    localStorage.setItem('dadosCadastro', JSON.stringify(dadosCadastro));
+
+
+                    // Inicia a verificação do pagamento
+                    setInterval(() => verificarPagamento(data.txid), 180000);
+
+                    // Envia os dados atualizados para a API
+                    enviarDadosParaAPI(dadosCadastro);
+                } else {
+                    throw new Error('Código PIX não encontrado na resposta.');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById("pixKey").textContent = "Erro ao gerar código PIX. Verifique a API.";
+                document.getElementById("loader").style.display = "none";
+            }
+        });
+
+        function copyPixKey() {
+            const pixText = document.getElementById("pixKey").textContent;
+            if (pixText && pixText !== "Erro ao gerar código PIX. Verifique a API.") {
+                navigator.clipboard.writeText(pixText);
+                alert("Código PIX copiado!");
+            } else {
+                alert("Não há código PIX disponível para copiar.");
+            }
+        }
+
+        function verificarPagamento(id) {
+            fetch(`https://apinatodireto.redebrasilrp.com.br/verifique/${id}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'CONCLUIDA') {
+                        fetch(`https://apinatodireto.redebrasilrp.com.br/Cliente/${id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status_pgto: 'PAGO' })
+                        })
+                            .then(response => response.json())
+                            .then(() => {
+                                window.location.href = `confirmacao-pix.html?idfinanceira=${idfinanceira}`;
+                            })
+                            .catch(error => console.error('Erro ao atualizar status de pagamento:', error));
+                    }
+                })
+                .catch(error => console.error('Erro ao verificar pagamento:', error));
+        }
+
+
+        async function enviarDadosParaAPI(dadosCadastro) {
+            try {
+                const response = await fetch('https://apinatodireto.redebrasilrp.com.br/cliente', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dadosCadastro),
+                });
+                const data = await response.json();
+
+                console.log(data);
+                if (!response.ok) {
+                    throw new Error(`Erro ao enviar dados: ${response.status}`);
+                }
+
+            } catch (error) {
+                console.error("Erro ao enviar os dados para a API:", error);
+            }
+            console.log(dadosCadastro)
+        }
+
+    </script>
+</body>
+
+</html>
